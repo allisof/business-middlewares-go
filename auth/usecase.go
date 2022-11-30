@@ -179,26 +179,30 @@ func Check() gin.HandlerFunc {
 			}
 		}
 
+		var requestBody string
+
 		if os.Getenv("MODE") == "DEBUGGER" {
 			// Get request body
 			buf, _ := io.ReadAll(c.Request.Body)
 			rdr1 := io.NopCloser(bytes.NewBuffer(buf))
 			rdr2 := io.NopCloser(bytes.NewBuffer(buf))
 
-			requestBody := readBody(rdr1)
+			requestBody = readBody(rdr1)
 			c.Request.Body = rdr2
+		}
+
+		c.Next()
+
+		if os.Getenv("MODE") == "DEBUGGER" {
+			if requestBody != "" {
+				fmt.Printf("Request Body: %v\n", requestBody)
+			}
 
 			// Get response body
 			w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
 			c.Writer = w
 
-			if requestBody != "" {
-				fmt.Printf("Request Body: %v\n", requestBody)
-			}
-
 			fmt.Printf("Response body: %v\n", w.body.String())
 		}
-
-		c.Next()
 	}
 }
