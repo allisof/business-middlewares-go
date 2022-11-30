@@ -180,6 +180,7 @@ func Check() gin.HandlerFunc {
 		}
 
 		var requestBody string
+		var responseBody string
 
 		if os.Getenv("MODE") == "DEBUGGER" {
 			// Get request body
@@ -189,6 +190,11 @@ func Check() gin.HandlerFunc {
 
 			requestBody = readBody(rdr1)
 			c.Request.Body = rdr2
+
+			// Get response body
+			w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
+			c.Writer = w
+			responseBody = w.body.String()
 		}
 
 		c.Next()
@@ -198,11 +204,7 @@ func Check() gin.HandlerFunc {
 				fmt.Printf("Request Body: %v\n", requestBody)
 			}
 
-			// Get response body
-			w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
-			c.Writer = w
-
-			fmt.Printf("Response body: %v\n", w.body.String())
+			fmt.Printf("Response body: %v\n", responseBody)
 		}
 	}
 }
