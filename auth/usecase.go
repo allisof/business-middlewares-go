@@ -83,6 +83,7 @@ func isValidAction(userId string, endpoint string, method string) (bool, error) 
 			S.status = $1
 			AND O.status = $1
 			AND A.status = $1
+		  	AND G.status = $1
 		  	AND U.status = $1
 			AND A.endpoint = $2
 			AND A.method = $3
