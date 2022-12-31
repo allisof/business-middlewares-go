@@ -5,14 +5,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 
 	_ "github.com/lib/pq"
 )
@@ -127,57 +128,55 @@ func Check() gin.HandlerFunc {
 		tokenBearer := c.Request.Header.Get("Authorization")
 		method := c.Request.Method
 
-		if c.FullPath() != "/api/iam/auth" {
-			authUnauthorizedError := errors.New("error: unauthorized user")
-			authForbiddenError := errors.New("error: user not authorized for this operation")
+		authUnauthorizedError := errors.New("error: unauthorized user")
+		authForbiddenError := errors.New("error: user not authorized for this operation")
 
-			if tokenBearer == "" {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"code":    "UNAUTHORIZED_ERROR",
-					"message": authUnauthorizedError.Error(),
-				})
-				c.Abort()
-				return
-			}
-
-			jwtToken := strings.TrimPrefix(tokenBearer, "Bearer ")
-
-			var jwtSecretKey = []byte(os.Getenv("JWT_SECRET_KEY"))
-			token, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, errors.New("error: unauthorized user")
-				}
-
-				return jwtSecretKey, nil
+		if tokenBearer == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    "UNAUTHORIZED_ERROR",
+				"message": authUnauthorizedError.Error(),
 			})
+			c.Abort()
+			return
+		}
 
-			if err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"code":    "UNAUTHORIZED_ERROR",
-					"message": authUnauthorizedError.Error(),
-				})
-				c.Abort()
-				return
+		jwtToken := strings.TrimPrefix(tokenBearer, "Bearer ")
+
+		var jwtSecretKey = []byte(os.Getenv("JWT_SECRET_KEY"))
+		token, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("error: unauthorized user")
 			}
 
-			var userId string
-			if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-				c.Set("agencyId", claims["agencyId"])
-				c.Set("companyId", claims["companyId"])
-				c.Set("userId", claims["userId"])
-				c.Set("email", claims["email"])
+			return jwtSecretKey, nil
+		})
 
-				userId = fmt.Sprint(claims["userId"])
-			}
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    "UNAUTHORIZED_ERROR",
+				"message": authUnauthorizedError.Error(),
+			})
+			c.Abort()
+			return
+		}
 
-			if ok, err := isValidAction(userId, c.FullPath(), method); !ok && err != nil {
-				c.JSON(http.StatusForbidden, gin.H{
-					"code":    "FORBIDDEN_ERROR",
-					"message": authForbiddenError.Error(),
-				})
-				c.Abort()
-				return
-			}
+		var userId string
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			c.Set("agencyId", claims["agencyId"])
+			c.Set("companyId", claims["companyId"])
+			c.Set("userId", claims["userId"])
+			c.Set("email", claims["email"])
+
+			userId = fmt.Sprint(claims["userId"])
+		}
+
+		if ok, err := isValidAction(userId, c.FullPath(), method); !ok && err != nil {
+			c.JSON(http.StatusForbidden, gin.H{
+				"code":    "FORBIDDEN_ERROR",
+				"message": authForbiddenError.Error(),
+			})
+			c.Abort()
+			return
 		}
 
 		// Get request body
